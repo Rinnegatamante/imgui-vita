@@ -37,6 +37,7 @@
 //  2016-09-05: OpenGL: Fixed save and restore of current scissor rectangle.
 //  2016-07-29: OpenGL: Explicitly setting GL_UNPACK_ROW_LENGTH to reduce issues because SDL changes it. (#752)
 
+#include <stdlib.h>
 #include <vitaGL.h>
 #include "imgui.h"
 #include "imgui_impl_vitagl.h"
@@ -46,6 +47,15 @@ static uint64_t       g_Time = 0;
 static bool         g_MousePressed[3] = { false, false, false };
 static GLuint       g_FontTexture = 0;
 //static SDL_Cursor*  g_MouseCursors[ImGuiMouseCursor_COUNT] = { 0 };
+
+float *startVertex = nullptr;
+float *startTexCoord = nullptr;
+uint8_t *startColor = nullptr;
+uint16_t *startIndex = nullptr;
+float *gVertexBuffer = nullptr;
+float *gTexCoordBuffer = nullptr;
+uint8_t *gColorBuffer = nullptr;
+uint16_t *gIndexBuffer = nullptr;
 
 // OpenGL2 Render function.
 // (this used to be set in io.RenderDrawListsFn and called by ImGui::Render(), but you can now call this directly from your main loop)
@@ -95,10 +105,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
         const ImDrawList* cmd_list = draw_data->CmdLists[n];
         const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
         const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
-        glVertexPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos)));
-        glTexCoordPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv)));
-        glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col)));
-
+		
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
             const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
@@ -110,7 +117,50 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
             {
                 glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->TextureId);
                 glScissor((int)pcmd->ClipRect.x, (int)(fb_height - pcmd->ClipRect.w), (int)(pcmd->ClipRect.z - pcmd->ClipRect.x), (int)(pcmd->ClipRect.w - pcmd->ClipRect.y));
-                glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, GL_UNSIGNED_BYTE, idx_buffer);
+				
+				float *vp = gVertexBuffer;
+				float *tp = gTexCoordBuffer;
+				uint8_t *cp = gColorBuffer;
+				uint16_t *ip = gIndexBuffer;
+				uint8_t *indices = (uint8_t*)idx_buffer;
+				if (sizeof(ImDrawIdx) == 2){
+					for (int idx=0; idx < pcmd->ElemCount; idx++){
+						*ip = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
+						vp[0] = vertices[0];
+						vp[1] = vertices[1];
+						vp[2] = 0.5f;
+						memcpy(tp, texcoords, sizeof(float) * 2);
+						memcpy(cp, colors, sizeof(uint32_t));
+						vp += 3;
+						tp += 2;
+						cp += 4;
+						ip += 1;
+					}
+				}else{
+					for (int idx=0; idx < pcmd->ElemCount; idx++){
+						*ip = *((uint32_t*)(indices + sizeof(ImDrawIdx) * idx));
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
+						gVertexBuffer[0] = vertices[0];
+						gVertexBuffer[1] = vertices[1];
+						gVertexBuffer[2] = 0.5f;
+						memcpy(gTexCoordBuffer, texcoords, sizeof(float) * 2);
+						memcpy(gColorBuffer, colors, sizeof(uint32_t));
+						gVertexBuffer += 3;
+						gTexCoordBuffer += 2;
+						gColorBuffer += 4;
+						gIndexBuffer += 1;
+					}
+				}
+				vglIndexPointerMapped(ip);
+				vglColorPointerMapped(GL_UNSIGNED_BYTE, cp);
+				vglTexCoordPointerMapped(tp);
+				vglVertexPointerMapped(vp);
+                vglDrawObjects(GL_TRIANGLES, pcmd->ElemCount, GL_TRUE);
             }
             idx_buffer += pcmd->ElemCount;
         }
@@ -219,6 +269,14 @@ bool    ImGui_ImplVitaGL_Init()
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;   // We can honor GetMouseCursor() values (optional)
 
+	// Initializing buffers
+	startVertex = (float*)malloc(sizeof(float) * 1024 * 3);
+	startTexCoord = (float*)malloc(sizeof(float) * 1024 * 2);
+	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 1024 * 4);
+	startIndex = (uint16_t*)malloc(sizeof(uint16_t) * 1024);
+	
+	vglMapHeapMem();
+	
     // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
     /*io.KeyMap[ImGuiKey_Tab] = SDL_SCANCODE_TAB;
     io.KeyMap[ImGuiKey_LeftArrow] = SDL_SCANCODE_LEFT;
@@ -262,12 +320,24 @@ void ImGui_ImplVitaGL_Shutdown()
         SDL_FreeCursor(g_MouseCursors[cursor_n]);
     memset(g_MouseCursors, 0, sizeof(g_MouseCursors));*/
 
+	// Destroy buffers
+	free(gVertexBuffer);
+	free(gTexCoordBuffer);
+	free(gColorBuffer);
+	free(gIndexBuffer);
+	
     // Destroy OpenGL objects
     ImGui_ImplVitaGL_InvalidateDeviceObjects();
 }
 
 void ImGui_ImplVitaGL_NewFrame()
 {
+	
+	gVertexBuffer = startVertex;
+	gColorBuffer = startColor;
+	gIndexBuffer = startIndex;
+	gTexCoordBuffer = startTexCoord;
+	
     if (!g_FontTexture)
         ImGui_ImplVitaGL_CreateDeviceObjects();
 
