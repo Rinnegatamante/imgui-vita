@@ -56,6 +56,7 @@ float *gVertexBuffer = nullptr;
 float *gTexCoordBuffer = nullptr;
 uint8_t *gColorBuffer = nullptr;
 uint16_t *gIndexBuffer = nullptr;
+uint32_t gCounter = 0;
 
 // OpenGL2 Render function.
 // (this used to be set in io.RenderDrawListsFn and called by ImGui::Render(), but you can now call this directly from your main loop)
@@ -94,7 +95,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
-	glOrtho(0.0f, io.DisplaySize.x, io.DisplaySize.y, 0.0f, -1.0f, +1.0f);
+	glOrtho(0.0f, io.DisplaySize.x, io.DisplaySize.y, 0.0f, 0, 1);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
@@ -125,29 +126,29 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 				uint8_t *indices = (uint8_t*)idx_buffer;
 				if (sizeof(ImDrawIdx) == 2){
 					for (int idx=0; idx < pcmd->ElemCount; idx++){
-						*ip = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
-						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
-						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
-						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
-						vp[0] = vertices[0];
-						vp[1] = vertices[1];
-						vp[2] = 0.5f;
-						memcpy(tp, texcoords, sizeof(float) * 2);
-						memcpy(cp, colors, sizeof(uint32_t));
-						vp += 3;
-						tp += 2;
-						cp += 4;
-						ip += 1;
-					}
-				}else{
-					for (int idx=0; idx < pcmd->ElemCount; idx++){
-						*ip = *((uint32_t*)(indices + sizeof(ImDrawIdx) * idx));
+						gIndexBuffer[0] = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
 						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
 						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
 						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
 						gVertexBuffer[0] = vertices[0];
 						gVertexBuffer[1] = vertices[1];
-						gVertexBuffer[2] = 0.5f;
+						gVertexBuffer[2] = 0.0f;
+						memcpy(gTexCoordBuffer, texcoords, sizeof(float) * 2);
+						memcpy(gColorBuffer, colors, sizeof(uint32_t));
+						gVertexBuffer += 3;
+						gTexCoordBuffer += 2;
+						gColorBuffer += 4;
+						gIndexBuffer += 1;
+					}
+				}else{
+					for (int idx=0; idx < pcmd->ElemCount; idx++){
+						gIndexBuffer[0] = *((uint32_t*)(indices + sizeof(ImDrawIdx) * idx));
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
+						gVertexBuffer[0] = vertices[0];
+						gVertexBuffer[1] = vertices[1];
+						gVertexBuffer[2] = 0.0f;
 						memcpy(gTexCoordBuffer, texcoords, sizeof(float) * 2);
 						memcpy(gColorBuffer, colors, sizeof(uint32_t));
 						gVertexBuffer += 3;
@@ -163,6 +164,14 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 				vglDrawObjects(GL_TRIANGLES, pcmd->ElemCount, GL_TRUE);
 			}
 			idx_buffer += pcmd->ElemCount;
+			gCounter += pcmd->ElemCount;
+			if (gCounter > 0x9900){
+				gVertexBuffer = startVertex;
+				gColorBuffer = startColor;
+				gIndexBuffer = startIndex;
+				gTexCoordBuffer = startTexCoord;
+				gCounter = 0;
+			}
 		}
 	}
 
@@ -270,10 +279,15 @@ bool	ImGui_ImplVitaGL_Init()
 	io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;   // We can honor GetMouseCursor() values (optional)
 
 	// Initializing buffers
-	startVertex = (float*)malloc(sizeof(float) * 1024 * 3);
-	startTexCoord = (float*)malloc(sizeof(float) * 1024 * 2);
-	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 1024 * 4);
-	startIndex = (uint16_t*)malloc(sizeof(uint16_t) * 1024);
+	startVertex = (float*)malloc(sizeof(float) * 0x10000 * 3);
+	startTexCoord = (float*)malloc(sizeof(float) * 0x10000 * 2);
+	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 0x10000 * 4);
+	startIndex = (uint16_t*)malloc(sizeof(uint16_t) * 0x10000);
+	
+	gVertexBuffer = startVertex;
+	gColorBuffer = startColor;
+	gIndexBuffer = startIndex;
+	gTexCoordBuffer = startTexCoord;
 	
 	vglMapHeapMem();
 	
@@ -332,11 +346,6 @@ void ImGui_ImplVitaGL_Shutdown()
 
 void ImGui_ImplVitaGL_NewFrame()
 {
-	
-	gVertexBuffer = startVertex;
-	gColorBuffer = startColor;
-	gIndexBuffer = startIndex;
-	gTexCoordBuffer = startTexCoord;
 	
 	if (!g_FontTexture)
 		ImGui_ImplVitaGL_CreateDeviceObjects();
