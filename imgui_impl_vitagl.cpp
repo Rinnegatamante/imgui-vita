@@ -1,45 +1,10 @@
-// ImGui SDL2 binding with OpenGL (legacy, fixed pipeline)
-// (SDL is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
-
 // Implemented features:
 //  [X] User texture binding. Cast 'GLuint' OpenGL texture identifier as void*/ImTextureID. Read the FAQ about ImTextureID in imgui.cpp.
-// Missing features:
-//  [ ] SDL2 handling of IME under Windows appears to be broken and it explicitly disable the regular Windows IME. You can restore Windows IME by compiling SDL with SDL_DISABLE_WINDOWS_IME.
-
-// **DO NOT USE THIS CODE IF YOUR CODE/ENGINE IS USING MODERN OPENGL (SHADERS, VBO, VAO, etc.)**
-// **Prefer using the code in the sdl_opengl3_example/ folder**
-// This code is mostly provided as a reference to learn how ImGui integration works, because it is shorter to read.
-// If your code is using GL3+ context or any semi modern OpenGL calls, using this is likely to make everything more
-// complicated, will require your code to reset every single OpenGL attributes to their initial state, and might
-// confuse your GPU driver. 
-// The GL2 code is unable to reset attributes or even call e.g. "glUseProgram(0)" because they don't exist in that API.
-
-// You can copy and use unmodified imgui_impl_* files in your project. See main.cpp for an example of using this.
-// If you use this binding you'll need to call 4 functions: ImGui_ImplXXXX_Init(), ImGui_ImplXXXX_NewFrame(), ImGui::Render() and ImGui_ImplXXXX_Shutdown().
-// If you are new to ImGui, see examples/README.txt and documentation at the top of imgui.cpp.
-// https://github.com/ocornut/imgui
-
-// CHANGELOG
-// (minor and older changes stripped away, please see git history for details)
-//  2018-03-20: Misc: Setup io.BackendFlags ImGuiBackendFlags_HasMouseCursors flag + honor ImGuiConfigFlags_NoMouseCursorChange flag.
-//  2018-02-16: Inputs: Added support for mouse cursors, honoring ImGui::GetMouseCursor() value.
-//  2018-02-16: Misc: Obsoleted the io.RenderDrawListsFn callback and exposed ImGui_ImplVitaGL_RenderDrawData() in the .h file so you can call it yourself.
-//  2018-02-06: Misc: Removed call to ImGui::Shutdown() which is not available from 1.60 WIP, user needs to call CreateContext/DestroyContext themselves.
-//  2018-02-06: Inputs: Added mapping for ImGuiKey_Space.
-//  2018-02-05: Misc: Using SDL_GetPerformanceCounter() instead of SDL_GetTicks() to be able to handle very high framerate (1000+ FPS).
-//  2018-02-05: Inputs: Keyboard mapping is using scancodes everywhere instead of a confusing mixture of keycodes and scancodes. 
-//  2018-01-20: Inputs: Added Horizontal Mouse Wheel support.
-//  2018-01-19: Inputs: When available (SDL 2.0.4+) using SDL_CaptureMouse() to retrieve coordinates outside of client area when dragging. Otherwise (SDL 2.0.3 and before) testing for SDL_WINDOW_INPUT_FOCUS instead of SDL_WINDOW_MOUSE_FOCUS.
-//  2018-01-18: Inputs: Added mapping for ImGuiKey_Insert.
-//  2017-09-01: OpenGL: Save and restore current polygon mode.
-//  2017-08-25: Inputs: MousePos set to -FLT_MAX,-FLT_MAX when mouse is unavailable/missing (instead of -1,-1).
-//  2016-10-15: Misc: Added a void* user_data parameter to Clipboard function handlers.
-//  2016-09-05: OpenGL: Fixed save and restore of current scissor rectangle.
-//  2016-07-29: OpenGL: Explicitly setting GL_UNPACK_ROW_LENGTH to reduce issues because SDL changes it. (#752)
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <vitaGL.h>
+#include <math.h>
 #include "imgui.h"
 #include "imgui_impl_vitagl.h"
 
@@ -49,7 +14,6 @@
 static uint64_t	   g_Time = 0;
 static bool		 g_MousePressed[3] = { false, false, false };
 static GLuint	   g_FontTexture = 0;
-//static SDL_Cursor*  g_MouseCursors[ImGuiMouseCursor_COUNT] = { 0 };
 
 float *startVertex = nullptr;
 float *startTexCoord = nullptr;
@@ -60,6 +24,9 @@ float *gTexCoordBuffer = nullptr;
 uint8_t *gColorBuffer = nullptr;
 uint16_t *gIndexBuffer = nullptr;
 uint32_t gCounter = 0;
+
+bool touch_usage = false;
+bool keys_usage = true;
 
 void LOG(const char *format, ...) {
 	__gnuc_va_list arg;
@@ -305,9 +272,11 @@ bool	ImGui_ImplVitaGL_Init()
 {
 	
 	sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
 	
 	// Setup back-end capabilities flags
 	ImGuiIO& io = ImGui::GetIO();
+	io.MouseDrawCursor = true;
 	
 	// Initializing buffers
 	startVertex = (float*)malloc(sizeof(float) * 0x100000 * 3);
@@ -347,24 +316,11 @@ bool	ImGui_ImplVitaGL_Init()
 
 	io.ClipboardUserData = NULL;
 
-	/*g_MouseCursors[ImGuiMouseCursor_Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
-	g_MouseCursors[ImGuiMouseCursor_TextInput] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
-	g_MouseCursors[ImGuiMouseCursor_ResizeAll] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEALL);
-	g_MouseCursors[ImGuiMouseCursor_ResizeNS] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENS);
-	g_MouseCursors[ImGuiMouseCursor_ResizeEW] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
-	g_MouseCursors[ImGuiMouseCursor_ResizeNESW] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENESW);
-	g_MouseCursors[ImGuiMouseCursor_ResizeNWSE] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZENWSE);*/
-
 	return true;
 }
 
 void ImGui_ImplVitaGL_Shutdown()
 {
-	// Destroy SDL mouse cursors
-	/*for (ImGuiMouseCursor cursor_n = 0; cursor_n < ImGuiMouseCursor_COUNT; cursor_n++)
-		SDL_FreeCursor(g_MouseCursors[cursor_n]);
-	memset(g_MouseCursors, 0, sizeof(g_MouseCursors));*/
-
 	// Destroy buffers
 	free(gVertexBuffer);
 	free(gTexCoordBuffer);
@@ -377,6 +333,24 @@ void ImGui_ImplVitaGL_Shutdown()
 
 int mx, my;
 
+void IN_RescaleAnalog(int *x, int *y, int dead) {
+
+	float analogX = (float) *x;
+	float analogY = (float) *y;
+	float deadZone = (float) dead;
+	float maximum = 128.0f;
+	float magnitude = sqrt(analogX * analogX + analogY * analogY);
+	if (magnitude >= deadZone)
+	{
+		float scalingFactor = maximum / magnitude * (magnitude - deadZone) / (maximum - deadZone);
+		*x = (int) (analogX * scalingFactor);
+		*y = (int) (analogY * scalingFactor);
+	} else {
+		*x = 0;
+		*y = 0;
+	}
+}
+
 void ImGui_ImplVitaGL_NewFrame()
 {
 	
@@ -384,7 +358,6 @@ void ImGui_ImplVitaGL_NewFrame()
 		ImGui_ImplVitaGL_CreateDeviceObjects();
 
 	ImGuiIO& io = ImGui::GetIO();
-	io.MouseDrawCursor = true;
 	
 	// Setup display size (every frame to accommodate for window resizing)
 	int w, h;
@@ -400,24 +373,51 @@ void ImGui_ImplVitaGL_NewFrame()
 	io.DeltaTime = g_Time > 0 ? (float)((double)(current_time - g_Time) / frequency) : (float)(1.0f / 60.0f);
 	g_Time = current_time;
 
+	// Touch for mouse emulation
+	if (touch_usage){
+		SceTouchData touch;
+		sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch, 1);
+		if (touch.reportNum > 0){
+			mx = lerp(touch.report[0].x, 1920, 960);
+			my = lerp(touch.report[0].y, 1088, 544);
+		}
+	}
+	
+	// Keys for mouse emulation
+	if (keys_usage){
+		SceCtrlData pad;
+		sceCtrlPeekBufferPositive(0, &pad, 1);
+		int lx = pad.lx - 127;
+		int ly = pad.ly - 127;
+		IN_RescaleAnalog(&lx, &ly, 30);
+		mx += lx >> 2;
+		my += ly >> 2;
+		g_MousePressed[0] = pad.buttons & SCE_CTRL_LTRIGGER;
+		g_MousePressed[1] = pad.buttons & SCE_CTRL_RTRIGGER;
+	}
+	
 	// Setup mouse inputs (we already got mouse wheel, keyboard keys & characters from our event handler)
 	//Uint32 mouse_buttons = SDL_GetMouseState(&mx, &my);
 	io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
-	io.MouseDown[0] = g_MousePressed[0] /*|| (mouse_buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0*/;  // If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
-	io.MouseDown[1] = g_MousePressed[1] /*|| (mouse_buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) != 0*/;
-	io.MouseDown[2] = g_MousePressed[2] /*|| (mouse_buttons & SDL_BUTTON(SDL_BUTTON_MIDDLE)) != 0*/;
+	io.MouseDown[0] = g_MousePressed[0];
+	io.MouseDown[1] = g_MousePressed[1];
+	io.MouseDown[2] = g_MousePressed[2];
 	g_MousePressed[0] = g_MousePressed[1] = g_MousePressed[2] = false;
-
-	SceTouchData touch;
-	sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch, 1);
 	
-	if (touch.reportNum > 0){
-		mx = lerp(touch.report[0].x, 1920, 960);
-		my = lerp(touch.report[0].y, 1088, 544);
-	}
-	
+	if (mx < 0) mx = 0;
+	else if (mx > 960) mx = 960;
+	if (my < 0) my = 0;
+	else if (my > 544) my = 544;
 	io.MousePos = ImVec2((float)mx, (float)my);
 
 	// Start the frame. This call will update the io.WantCaptureMouse, io.WantCaptureKeyboard flag that you can use to dispatch inputs (or not) to your application.
 	ImGui::NewFrame();
+}
+
+void ImGui_ImplVitaGL_TouchUsage(bool val){
+	touch_usage = val;
+}
+
+void ImGui_ImplVitaGL_KeysUsage(bool val){
+	keys_usage = val;
 }
