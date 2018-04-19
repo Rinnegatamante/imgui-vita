@@ -1,6 +1,4 @@
-TARGET		:= imgui
-TITLE		:= IMGUI0001
-GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
+TARGET		:= libimgui
 
 LIBS = -lvitaGL -lc -lSceCommonDialog_stub -lSceLibKernel_stub \
 	-lSceDisplay_stub -lSceGxm_stub -lSceSysmodule_stub -lSceCtrl_stub \
@@ -20,24 +18,16 @@ CFLAGS  = -Wl,-q -O2 -g -mtune=cortex-a9 -mfpu=neon
 CXXFLAGS  = $(CFLAGS) -fno-exceptions -std=gnu++11
 ASFLAGS = $(CFLAGS)
 
-all: $(TARGET).vpk
+all: $(TARGET).a
 
-$(TARGET).vpk: $(TARGET).velf
-	vita-make-fself -s $< build/eboot.bin
-	vita-mksfoex -s TITLE_ID=$(TITLE) "$(TARGET)" param.sfo
-	cp -f param.sfo build/sce_sys/param.sfo
+$(TARGET).a: $(OBJS)
+	$(AR) -rc $@ $^
 
-	#------------ Comment this if you don't have 7zip ------------------
-	7z a -tzip ./$(TARGET).vpk -r ./build/sce_sys ./build/eboot.bin
-	#-------------------------------------------------------------------
-
-%.velf: %.elf
-	cp $< $<.unstripped.elf
-	$(PREFIX)-strip -g $<
-	vita-elf-create $< $@
-
-$(TARGET).elf: $(OBJS)
-	$(CXX) $(CXXFLAGS) $^ $(LIBS) -o $@
+install: $(TARGET).a
+	@mkdir -p $(VITASDK)/$(PREFIX)/lib/
+	cp $(TARGET).a $(VITASDK)/$(PREFIX)/lib/
+	@mkdir -p $(VITASDK)/$(PREFIX)/include/
+	cp *.h $(VITASDK)/$(PREFIX)/include/
 
 clean:
-	@rm -rf $(TARGET).velf $(TARGET).elf $(OBJS) $(TARGET).elf.unstripped.elf $(TARGET).vpk build/eboot.bin build/sce_sys/param.sfo ./param.sfo
+	@rm -rf $(TARGET).a $(TARGET).elf $(OBJS)
