@@ -16,8 +16,7 @@ OBJS     := $(addsuffix .o,$(BINFILES)) $(CFILES:.c=.o) $(CPPFILES:.cpp=.o)
 PREFIX  = arm-vita-eabi
 CC      = $(PREFIX)-gcc
 CXX      = $(PREFIX)-g++
-CFLAGS  = -fsigned-char -Wl,-q -O3 -g \
-	-ffast-math -mtune=cortex-a9 -mfpu=neon
+CFLAGS  = -Wl,-q -O2 -g -mtune=cortex-a9 -mfpu=neon
 CXXFLAGS  = $(CFLAGS) -fno-exceptions -std=gnu++11
 ASFLAGS = $(CFLAGS)
 

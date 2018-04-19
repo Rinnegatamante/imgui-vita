@@ -37,6 +37,7 @@
 //  2016-09-05: OpenGL: Fixed save and restore of current scissor rectangle.
 //  2016-07-29: OpenGL: Explicitly setting GL_UNPACK_ROW_LENGTH to reduce issues because SDL changes it. (#752)
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <vitaGL.h>
 #include "imgui.h"
@@ -57,6 +58,22 @@ float *gTexCoordBuffer = nullptr;
 uint8_t *gColorBuffer = nullptr;
 uint16_t *gIndexBuffer = nullptr;
 uint32_t gCounter = 0;
+
+void LOG(const char *format, ...) {
+	__gnuc_va_list arg;
+	int done;
+	va_start(arg, format);
+	char msg[512];
+	done = vsprintf(msg, format, arg);
+	va_end(arg);
+	int i;
+	sprintf(msg, "%s\n", msg);
+	FILE* log = fopen("ux0:/data/imgui.log", "a+");
+	if (log != NULL) {
+		fwrite(msg, 1, strlen(msg), log);
+		fclose(log);
+	}
+}
 
 // OpenGL2 Render function.
 // (this used to be set in io.RenderDrawListsFn and called by ImGui::Render(), but you can now call this directly from your main loop)
@@ -127,14 +144,19 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 				if (sizeof(ImDrawIdx) == 2){
 					for (int idx=0; idx < pcmd->ElemCount; idx++){
 						gIndexBuffer[0] = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
-						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
-						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
-						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * gIndexBuffer[0]);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * gIndexBuffer[0]);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * gIndexBuffer[0]);
+						gIndexBuffer[0] = idx;
 						gVertexBuffer[0] = vertices[0];
 						gVertexBuffer[1] = vertices[1];
 						gVertexBuffer[2] = 0.0f;
-						memcpy(gTexCoordBuffer, texcoords, sizeof(float) * 2);
-						memcpy(gColorBuffer, colors, sizeof(uint32_t));
+						gTexCoordBuffer[0] = texcoords[0];
+						gTexCoordBuffer[1] = texcoords[1];
+						gColorBuffer[0] = colors[0];
+						gColorBuffer[1] = colors[1];
+						gColorBuffer[2] = colors[2];
+						gColorBuffer[3] = colors[3];
 						gVertexBuffer += 3;
 						gTexCoordBuffer += 2;
 						gColorBuffer += 4;
@@ -143,14 +165,19 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 				}else{
 					for (int idx=0; idx < pcmd->ElemCount; idx++){
 						gIndexBuffer[0] = *((uint32_t*)(indices + sizeof(ImDrawIdx) * idx));
-						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * ip[0]);
-						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * ip[0]);
-						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * ip[0]);
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * gIndexBuffer[0]);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * gIndexBuffer[0]);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * gIndexBuffer[0]);
+						gIndexBuffer[0] = idx;
 						gVertexBuffer[0] = vertices[0];
 						gVertexBuffer[1] = vertices[1];
 						gVertexBuffer[2] = 0.0f;
-						memcpy(gTexCoordBuffer, texcoords, sizeof(float) * 2);
-						memcpy(gColorBuffer, colors, sizeof(uint32_t));
+						gTexCoordBuffer[0] = texcoords[0];
+						gTexCoordBuffer[1] = texcoords[1];
+						gColorBuffer[0] = colors[0];
+						gColorBuffer[1] = colors[1];
+						gColorBuffer[2] = colors[2];
+						gColorBuffer[3] = colors[3];
 						gVertexBuffer += 3;
 						gTexCoordBuffer += 2;
 						gColorBuffer += 4;
@@ -165,7 +192,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 			}
 			idx_buffer += pcmd->ElemCount;
 			gCounter += pcmd->ElemCount;
-			if (gCounter > 0x9900){
+			if (gCounter > 0x99900){
 				gVertexBuffer = startVertex;
 				gColorBuffer = startColor;
 				gIndexBuffer = startIndex;
@@ -241,7 +268,7 @@ bool ImGui_ImplVitaGL_CreateDeviceObjects()
 	ImGuiIO& io = ImGui::GetIO();
 	unsigned char* pixels;
 	int width, height;
-	io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height);
+	io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 	// Upload texture to graphics system
 	GLint last_texture;
@@ -251,7 +278,7 @@ bool ImGui_ImplVitaGL_CreateDeviceObjects()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	//glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, width, height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
 	// Store our identifier
 	io.Fonts->TexID = (void *)(intptr_t)g_FontTexture;
@@ -279,10 +306,10 @@ bool	ImGui_ImplVitaGL_Init()
 	io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;   // We can honor GetMouseCursor() values (optional)
 
 	// Initializing buffers
-	startVertex = (float*)malloc(sizeof(float) * 0x10000 * 3);
-	startTexCoord = (float*)malloc(sizeof(float) * 0x10000 * 2);
-	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 0x10000 * 4);
-	startIndex = (uint16_t*)malloc(sizeof(uint16_t) * 0x10000);
+	startVertex = (float*)malloc(sizeof(float) * 0x100000 * 3);
+	startTexCoord = (float*)malloc(sizeof(float) * 0x100000 * 2);
+	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 0x100000 * 4);
+	startIndex = (uint16_t*)malloc(sizeof(uint16_t) * 0x100000);
 	
 	gVertexBuffer = startVertex;
 	gColorBuffer = startColor;
@@ -362,7 +389,7 @@ void ImGui_ImplVitaGL_NewFrame()
 	io.DisplayFramebufferScale = ImVec2(w > 0 ? ((float)display_w / w) : 0, h > 0 ? ((float)display_h / h) : 0);
 
 	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
-	static uint64_t frequency = 1000;
+	static uint64_t frequency = 1000000;
 	uint64_t current_time = sceKernelGetProcessTimeWide();
 	io.DeltaTime = g_Time > 0 ? (float)((double)(current_time - g_Time) / frequency) : (float)(1.0f / 60.0f);
 	g_Time = current_time;
