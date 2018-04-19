@@ -7,6 +7,7 @@
 #include <math.h>
 #include "imgui.h"
 #include "imgui_impl_vitagl.h"
+#include "imgui_vita_touch.h"
 
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
@@ -14,6 +15,9 @@
 static uint64_t	   g_Time = 0;
 static bool		 g_MousePressed[3] = { false, false, false };
 static GLuint	   g_FontTexture = 0;
+static SceCtrlData g_OldPad;
+static int hires_x = 0;
+static int hires_y = 0;
 
 float *startVertex = nullptr;
 float *startTexCoord = nullptr;
@@ -323,6 +327,8 @@ bool	ImGui_ImplVitaGL_Init()
 
 	io.ClipboardUserData = NULL;
 
+	ImGui_ImplVitaGL_InitTouch();
+
 	return true;
 }
 
@@ -345,7 +351,7 @@ void IN_RescaleAnalog(int *x, int *y, int dead) {
 	float analogX = (float) *x;
 	float analogY = (float) *y;
 	float deadZone = (float) dead;
-	float maximum = 128.0f;
+	float maximum = 32768.0f;
 	float magnitude = sqrt(analogX * analogX + analogY * analogY);
 	if (magnitude >= deadZone)
 	{
@@ -382,25 +388,35 @@ void ImGui_ImplVitaGL_NewFrame()
 
 	// Touch for mouse emulation
 	if (touch_usage){
-		SceTouchData touch;
-		sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch, 1);
-		if (touch.reportNum > 0){
-			mx = lerp(touch.report[0].x, 1920, 960);
-			my = lerp(touch.report[0].y, 1088, 544);
-		}
+		double scale_x = 960.0 / io.DisplaySize.x;
+		double scale_y = 544.0 / io.DisplaySize.y;
+		double offset_x = 0;
+		double offset_y = 0;
+		ImGui_ImplVitaGL_PollTouch(offset_x, offset_y, scale_x, scale_y, &mx, &my, g_MousePressed);
 	}
 	
 	// Keys for mouse emulation
 	if (keys_usage){
 		SceCtrlData pad;
 		sceCtrlPeekBufferPositive(0, &pad, 1);
-		int lx = pad.lx - 127;
-		int ly = pad.ly - 127;
-		IN_RescaleAnalog(&lx, &ly, 30);
-		mx += lx >> 2;
-		my += ly >> 2;
-		g_MousePressed[0] = pad.buttons & SCE_CTRL_LTRIGGER;
-		g_MousePressed[1] = pad.buttons & SCE_CTRL_RTRIGGER;
+		int lx = (pad.lx - 127) * 256;
+		int ly = (pad.ly - 127) * 256;
+		IN_RescaleAnalog(&lx, &ly, 7680);
+		hires_x += lx;
+		hires_y += ly;
+		if (hires_x != 0 || hires_y != 0) {
+			// slow down pointer, could be made user-adjustable
+			int slowdown = 2048;
+			mx += hires_x / slowdown;
+			my += hires_y / slowdown;
+			hires_x %= slowdown;
+			hires_y %= slowdown;
+		}
+		if ((pad.buttons & SCE_CTRL_LTRIGGER) != (g_OldPad.buttons & SCE_CTRL_LTRIGGER))
+			g_MousePressed[0] = pad.buttons & SCE_CTRL_LTRIGGER;
+		if ((pad.buttons & SCE_CTRL_RTRIGGER) != (g_OldPad.buttons & SCE_CTRL_RTRIGGER))
+			g_MousePressed[1] = pad.buttons & SCE_CTRL_RTRIGGER;
+		g_OldPad = pad;
 	}
 	
 	// Setup mouse inputs (we already got mouse wheel, keyboard keys & characters from our event handler)
@@ -409,8 +425,7 @@ void ImGui_ImplVitaGL_NewFrame()
 	io.MouseDown[0] = g_MousePressed[0];
 	io.MouseDown[1] = g_MousePressed[1];
 	io.MouseDown[2] = g_MousePressed[2];
-	g_MousePressed[0] = g_MousePressed[1] = g_MousePressed[2] = false;
-	
+
 	if (mx < 0) mx = 0;
 	else if (mx > 960) mx = 960;
 	if (my < 0) my = 0;
@@ -423,6 +438,14 @@ void ImGui_ImplVitaGL_NewFrame()
 
 void ImGui_ImplVitaGL_TouchUsage(bool val){
 	touch_usage = val;
+}
+
+void ImGui_ImplVitaGL_UseIndirectFrontTouch(bool val){
+	ImGui_ImplVitaGL_PrivateSetIndirectFrontTouch(val);
+}
+
+void ImGui_ImplVitaGL_UseRearTouch(bool val){
+	ImGui_ImplVitaGL_PrivateSetRearTouch(val);
 }
 
 void ImGui_ImplVitaGL_KeysUsage(bool val){
