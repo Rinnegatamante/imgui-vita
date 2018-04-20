@@ -17,6 +17,7 @@ CXX      = $(PREFIX)-g++
 CFLAGS  = -Wl,-q -O2 -g -mtune=cortex-a9 -mfpu=neon
 CXXFLAGS  = $(CFLAGS) -fno-exceptions -std=gnu++11
 ASFLAGS = $(CFLAGS)
+AR      = $(PREFIX)-gcc-ar
 
 all: $(TARGET).a
 

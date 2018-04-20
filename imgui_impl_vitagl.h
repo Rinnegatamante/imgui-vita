@@ -14,5 +14,9 @@ IMGUI_API void        ImGui_ImplVitaGL_InvalidateDeviceObjects();
 IMGUI_API bool        ImGui_ImplVitaGL_CreateDeviceObjects();
 
 void ImGui_ImplVitaGL_TouchUsage(bool val);
+// indirect front touch enabled: drag pointer with finger
+// indirect front touch disabled: pointer jumps to finger
+void ImGui_ImplVitaGL_UseIndirectFrontTouch(bool val);
+void ImGui_ImplVitaGL_UseRearTouch(bool val); // turn rear panel touch on or off
 void ImGui_ImplVitaGL_KeysUsage(bool val);
 void ImGui_ImplVitaGL_UseCustomShader(bool val);
