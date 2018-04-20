@@ -27,6 +27,7 @@ uint32_t gCounter = 0;
 
 bool touch_usage = false;
 bool keys_usage = true;
+bool shaders_usage = false;
 
 void LOG(const char *format, ...) {
 	__gnuc_va_list arg;
@@ -154,9 +155,15 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 					}
 				}
 				vglIndexPointerMapped(ip);
-				vglColorPointerMapped(GL_UNSIGNED_BYTE, cp);
-				vglTexCoordPointerMapped(tp);
-				vglVertexPointerMapped(vp);
+				if (shaders_usage){
+					vglVertexAttribPointerMapped(0, vp);
+					vglVertexAttribPointerMapped(1, tp);
+					vglVertexAttribPointerMapped(2, cp);
+				}else{
+					vglVertexPointerMapped(vp);
+					vglTexCoordPointerMapped(tp);
+					vglColorPointerMapped(GL_UNSIGNED_BYTE, cp);
+				}
 				vglDrawObjects(GL_TRIANGLES, pcmd->ElemCount, GL_TRUE);
 			}
 			idx_buffer += pcmd->ElemCount;
@@ -420,4 +427,8 @@ void ImGui_ImplVitaGL_TouchUsage(bool val){
 
 void ImGui_ImplVitaGL_KeysUsage(bool val){
 	keys_usage = val;
+}
+
+void ImGui_ImplVitaGL_UseCustomShader(bool val){
+	shaders_usage = val;
 }

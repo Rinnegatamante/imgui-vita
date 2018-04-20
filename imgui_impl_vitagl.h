@@ -15,3 +15,4 @@ IMGUI_API bool        ImGui_ImplVitaGL_CreateDeviceObjects();
 
 void ImGui_ImplVitaGL_TouchUsage(bool val);
 void ImGui_ImplVitaGL_KeysUsage(bool val);
+void ImGui_ImplVitaGL_UseCustomShader(bool val);
