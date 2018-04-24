@@ -18,5 +18,7 @@ void ImGui_ImplVitaGL_TouchUsage(bool val);
 // indirect front touch disabled: pointer jumps to finger
 void ImGui_ImplVitaGL_UseIndirectFrontTouch(bool val);
 void ImGui_ImplVitaGL_UseRearTouch(bool val); // turn rear panel touch on or off
-void ImGui_ImplVitaGL_KeysUsage(bool val);
+void ImGui_ImplVitaGL_MouseStickUsage(bool val); // Left mouse stick and trigger buttons control  mouse pointer
+// GamepadUsage uses the Vita buttons to navigate and interact with UI elements
+void ImGui_ImplVitaGL_GamepadUsage(bool val);
 void ImGui_ImplVitaGL_UseCustomShader(bool val);

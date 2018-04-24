@@ -30,6 +30,7 @@ int main(int, char**)
 	ImGui_ImplVitaGL_TouchUsage(true);
 	ImGui_ImplVitaGL_UseIndirectFrontTouch(false);
 	ImGui_ImplVitaGL_UseRearTouch(true);
+	ImGui_ImplVitaGL_GamepadUsage(true);
 
 	// Main loop
 	bool done = false;
