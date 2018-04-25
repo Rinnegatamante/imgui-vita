@@ -30,7 +30,8 @@ uint16_t *gIndexBuffer = nullptr;
 uint32_t gCounter = 0;
 
 bool touch_usage = false;
-bool keys_usage = true;
+bool mousestick_usage = true;
+bool gamepad_usage = false;
 bool shaders_usage = false;
 
 void LOG(const char *format, ...) {
@@ -364,6 +365,25 @@ void IN_RescaleAnalog(int *x, int *y, int dead) {
 	}
 }
 
+void ImGui_ImplVitaGL_PollLeftStick(SceCtrlData *pad, int *x, int *y)
+{
+	sceCtrlPeekBufferPositive(0, pad, 1);
+	int lx = (pad->lx - 127) * 256;
+	int ly = (pad->ly - 127) * 256;
+	IN_RescaleAnalog(&lx, &ly, 7680);
+	hires_x += lx;
+	hires_y += ly;
+	if (hires_x != 0 || hires_y != 0) {
+		// slow down pointer, could be made user-adjustable
+		int slowdown = 2048;
+		*x += hires_x / slowdown;
+		*y += hires_y / slowdown;
+		hires_x %= slowdown;
+		hires_y %= slowdown;
+	}
+}
+
+
 void ImGui_ImplVitaGL_NewFrame()
 {
 	
@@ -395,23 +415,34 @@ void ImGui_ImplVitaGL_NewFrame()
 		ImGui_ImplVitaGL_PollTouch(offset_x, offset_y, scale_x, scale_y, &mx, &my, g_MousePressed);
 	}
 	
-	// Keys for mouse emulation
-	if (keys_usage){
+	// Keypad navigation
+	if (gamepad_usage){
 		SceCtrlData pad;
-		sceCtrlPeekBufferPositive(0, &pad, 1);
-		int lx = (pad.lx - 127) * 256;
-		int ly = (pad.ly - 127) * 256;
-		IN_RescaleAnalog(&lx, &ly, 7680);
-		hires_x += lx;
-		hires_y += ly;
-		if (hires_x != 0 || hires_y != 0) {
-			// slow down pointer, could be made user-adjustable
-			int slowdown = 2048;
-			mx += hires_x / slowdown;
-			my += hires_y / slowdown;
-			hires_x %= slowdown;
-			hires_y %= slowdown;
+		int lstick_x, lstick_y = 0;
+		ImGui_ImplVitaGL_PollLeftStick(&pad, &lstick_x, &lstick_y);
+		io.NavInputs[ImGuiNavInput_Activate]  = (pad.buttons & SCE_CTRL_CROSS)    ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_Cancel]    = (pad.buttons & SCE_CTRL_CIRCLE)   ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_Input]     = (pad.buttons & SCE_CTRL_TRIANGLE) ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_Menu]      = (pad.buttons & SCE_CTRL_SQUARE)   ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_DpadLeft]  = (pad.buttons & SCE_CTRL_LEFT)     ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_DpadRight] = (pad.buttons & SCE_CTRL_RIGHT)    ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_DpadUp]    = (pad.buttons & SCE_CTRL_UP)       ? 1.0f : 0.0f;
+		io.NavInputs[ImGuiNavInput_DpadDown]  = (pad.buttons & SCE_CTRL_DOWN)     ? 1.0f : 0.0f;
+
+		if (io.NavInputs[ImGuiNavInput_Menu] == 1.0f) {
+			io.NavInputs[ImGuiNavInput_FocusPrev] = (pad.buttons & SCE_CTRL_LTRIGGER) ? 1.0f : 0.0f;
+			io.NavInputs[ImGuiNavInput_FocusNext] = (pad.buttons & SCE_CTRL_RTRIGGER) ? 1.0f : 0.0f;
+			if (lstick_x < 0) io.NavInputs[ImGuiNavInput_LStickLeft] = (float)(-lstick_x/16);
+			if (lstick_x > 0) io.NavInputs[ImGuiNavInput_LStickRight] = (float)(lstick_x/16);
+			if (lstick_y < 0) io.NavInputs[ImGuiNavInput_LStickUp] = (float)(-lstick_y/16);
+			if (lstick_y > 0) io.NavInputs[ImGuiNavInput_LStickDown] = (float)(lstick_y/16);
 		}
+	}
+	
+	// Keys for mouse emulation
+	if (mousestick_usage && !(io.NavInputs[ImGuiNavInput_Menu] == 1.0f)){
+		SceCtrlData pad;
+		ImGui_ImplVitaGL_PollLeftStick(&pad, &mx, &my);
 		if ((pad.buttons & SCE_CTRL_LTRIGGER) != (g_OldPad.buttons & SCE_CTRL_LTRIGGER))
 			g_MousePressed[0] = pad.buttons & SCE_CTRL_LTRIGGER;
 		if ((pad.buttons & SCE_CTRL_RTRIGGER) != (g_OldPad.buttons & SCE_CTRL_RTRIGGER))
@@ -448,8 +479,12 @@ void ImGui_ImplVitaGL_UseRearTouch(bool val){
 	ImGui_ImplVitaGL_PrivateSetRearTouch(val);
 }
 
-void ImGui_ImplVitaGL_KeysUsage(bool val){
-	keys_usage = val;
+void ImGui_ImplVitaGL_MouseStickUsage(bool val){
+	mousestick_usage = val;
+}
+
+void ImGui_ImplVitaGL_GamepadUsage(bool val){
+	gamepad_usage = val;
 }
 
 void ImGui_ImplVitaGL_UseCustomShader(bool val){
