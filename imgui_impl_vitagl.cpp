@@ -19,20 +19,20 @@ static SceCtrlData g_OldPad;
 static int hires_x = 0;
 static int hires_y = 0;
 
-float *startVertex = nullptr;
-float *startTexCoord = nullptr;
-uint8_t *startColor = nullptr;
-uint16_t *startIndex = nullptr;
-float *gVertexBuffer = nullptr;
-float *gTexCoordBuffer = nullptr;
-uint8_t *gColorBuffer = nullptr;
-uint16_t *gIndexBuffer = nullptr;
-uint32_t gCounter = 0;
+static float *startVertex = nullptr;
+static float *startTexCoord = nullptr;
+static uint8_t *startColor = nullptr;
+static uint16_t *startIndex = nullptr;
+static float *gVertexBuffer = nullptr;
+static float *gTexCoordBuffer = nullptr;
+static uint8_t *gColorBuffer = nullptr;
+static uint16_t *gIndexBuffer = nullptr;
+static uint32_t gCounter = 0;
 
-bool touch_usage = false;
-bool mousestick_usage = true;
-bool gamepad_usage = false;
-bool shaders_usage = false;
+static bool touch_usage = false;
+static bool mousestick_usage = true;
+static bool gamepad_usage = false;
+static bool shaders_usage = false;
 
 void LOG(const char *format, ...) {
 	__gnuc_va_list arg;
