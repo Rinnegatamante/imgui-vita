@@ -22,7 +22,6 @@ static int hires_y = 0;
 static float *startVertex = nullptr;
 static float *startTexCoord = nullptr;
 static uint8_t *startColor = nullptr;
-static uint16_t *startIndex = nullptr;
 static float *gVertexBuffer = nullptr;
 static float *gTexCoordBuffer = nullptr;
 static uint8_t *gColorBuffer = nullptr;
@@ -34,6 +33,7 @@ static bool mousestick_usage = true;
 static bool gamepad_usage = false;
 static bool shaders_usage = false;
 
+#ifdef ENABLE_IMGUI_LOG
 void LOG(const char *format, ...) {
 	__gnuc_va_list arg;
 	int done;
@@ -49,6 +49,7 @@ void LOG(const char *format, ...) {
 		fclose(log);
 	}
 }
+#endif
 
 // OpenGL2 Render function.
 // (this used to be set in io.RenderDrawListsFn and called by ImGui::Render(), but you can now call this directly from your main loop)
@@ -114,15 +115,13 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 				float *vp = gVertexBuffer;
 				float *tp = gTexCoordBuffer;
 				uint8_t *cp = gColorBuffer;
-				uint16_t *ip = gIndexBuffer;
 				uint8_t *indices = (uint8_t*)idx_buffer;
 				if (sizeof(ImDrawIdx) == 2){
 					for (int idx=0; idx < pcmd->ElemCount; idx++){
-						gIndexBuffer[0] = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
-						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * gIndexBuffer[0]);
-						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * gIndexBuffer[0]);
-						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * gIndexBuffer[0]);
-						gIndexBuffer[0] = idx;
+						uint16_t index = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * index);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * index);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * index);
 						gVertexBuffer[0] = vertices[0];
 						gVertexBuffer[1] = vertices[1];
 						gVertexBuffer[2] = 0.0f;
@@ -135,15 +134,13 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 						gVertexBuffer += 3;
 						gTexCoordBuffer += 2;
 						gColorBuffer += 4;
-						gIndexBuffer += 1;
 					}
 				}else{
 					for (int idx=0; idx < pcmd->ElemCount; idx++){
-						gIndexBuffer[0] = *((uint32_t*)(indices + sizeof(ImDrawIdx) * idx));
-						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * gIndexBuffer[0]);
-						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * gIndexBuffer[0]);
-						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * gIndexBuffer[0]);
-						gIndexBuffer[0] = idx;
+						uint16_t index = *((uint16_t*)(indices + sizeof(ImDrawIdx) * idx));
+						float *vertices = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos) + sizeof(ImDrawVert) * index);
+						float *texcoords = (float*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, uv) + sizeof(ImDrawVert) * index);
+						uint8_t *colors = (uint8_t*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, col) + sizeof(ImDrawVert) * index);
 						gVertexBuffer[0] = vertices[0];
 						gVertexBuffer[1] = vertices[1];
 						gVertexBuffer[2] = 0.0f;
@@ -156,10 +153,9 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 						gVertexBuffer += 3;
 						gTexCoordBuffer += 2;
 						gColorBuffer += 4;
-						gIndexBuffer += 1;
 					}
 				}
-				vglIndexPointerMapped(ip);
+
 				if (shaders_usage){
 					vglVertexAttribPointerMapped(0, vp);
 					vglVertexAttribPointerMapped(1, tp);
@@ -176,7 +172,6 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 			if (gCounter > 0x99900){
 				gVertexBuffer = startVertex;
 				gColorBuffer = startColor;
-				gIndexBuffer = startIndex;
 				gTexCoordBuffer = startTexCoord;
 				gCounter = 0;
 			}
@@ -294,12 +289,15 @@ bool	ImGui_ImplVitaGL_Init()
 	startVertex = (float*)malloc(sizeof(float) * 0x100000 * 3);
 	startTexCoord = (float*)malloc(sizeof(float) * 0x100000 * 2);
 	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 0x100000 * 4);
-	startIndex = (uint16_t*)malloc(sizeof(uint16_t) * 0x100000);
+	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0x5000);
 	
 	gVertexBuffer = startVertex;
 	gColorBuffer = startColor;
-	gIndexBuffer = startIndex;
 	gTexCoordBuffer = startTexCoord;
+	
+	for (uint16_t i = 0; i < 0x5000; i++) {
+		gIndexBuffer[i] = i;
+	}
 	
 	// Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
 	/*io.KeyMap[ImGuiKey_Tab] = SDL_SCANCODE_TAB;
@@ -463,6 +461,8 @@ void ImGui_ImplVitaGL_NewFrame()
 
 	// Start the frame. This call will update the io.WantCaptureMouse, io.WantCaptureKeyboard flag that you can use to dispatch inputs (or not) to your application.
 	ImGui::NewFrame();
+	
+	vglIndexPointerMapped(gIndexBuffer);
 }
 
 void ImGui_ImplVitaGL_TouchUsage(bool val){
