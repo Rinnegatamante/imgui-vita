@@ -4,7 +4,7 @@ GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 
 LIBS = -limgui -lvitaGL -lc -lSceCommonDialog_stub -lSceLibKernel_stub \
 	-lSceDisplay_stub -lSceGxm_stub -lSceSysmodule_stub -lSceCtrl_stub \
-	-lSceTouch_stub -lm -lSceAppMgr_stub -lSceAppUtil_stub
+	-lSceTouch_stub -lm -lSceAppMgr_stub -lSceAppUtil_stub -lmathneon
 
 CPPSOURCES	:= .
 
@@ -23,13 +23,9 @@ ASFLAGS = $(CFLAGS)
 all: $(TARGET).vpk
 
 $(TARGET).vpk: $(TARGET).velf
-	vita-make-fself -s $< build/eboot.bin
+	vita-make-fself -s $< eboot.bin
 	vita-mksfoex -s TITLE_ID=$(TITLE) "$(TARGET)" param.sfo
-	cp -f param.sfo build/sce_sys/param.sfo
-
-	#------------ Comment this if you don't have 7zip ------------------
-	7z a -tzip ./$(TARGET).vpk -r ./build/sce_sys ./build/eboot.bin
-	#-------------------------------------------------------------------
+	vita-pack-vpk -s param.sfo -b eboot.bin $@
 
 %.velf: %.elf
 	cp $< $<.unstripped.elf
