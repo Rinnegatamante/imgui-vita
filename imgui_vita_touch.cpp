@@ -6,7 +6,7 @@
 #include <psp2/display.h>
 #include "imgui_vita_touch.h"
 #include <string.h>
-//#include "math.h"
+#include <vitaGL.h>
 
 #define SDL_BUTTON_LEFT 0
 #define SDL_BUTTON_RIGHT 1
@@ -136,7 +136,7 @@ void ImGui_ImplVitaGL_PollTouch(double x0, double y0, double sx, double sy, int 
 	touchmouse_button = mbuttons;
 
 	int finger_id = 0;
-	memcpy(touch_old, touch, sizeof(touch_old));
+	memcpy_neon(touch_old, touch, sizeof(touch_old));
 
 	for(int port = 0; port < SCE_TOUCH_PORT_MAX_NUM; port++) {
 		if ((port == SCE_TOUCH_PORT_FRONT) || (rear_touch && port == SCE_TOUCH_PORT_BACK)) {

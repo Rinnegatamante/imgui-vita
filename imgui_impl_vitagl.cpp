@@ -11,6 +11,8 @@
 
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
+#define VERTEX_BUFFER_SIZE 0x100000
+
 // Data
 static uint64_t	   g_Time = 0;
 static bool		 g_MousePressed[3] = { false, false, false };
@@ -169,7 +171,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 			}
 			idx_buffer += pcmd->ElemCount;
 			gCounter += pcmd->ElemCount;
-			if (gCounter > 0x99900){
+			if (gCounter > VERTEX_BUFFER_SIZE - 0x66700){
 				gVertexBuffer = startVertex;
 				gColorBuffer = startColor;
 				gTexCoordBuffer = startTexCoord;
@@ -286,9 +288,9 @@ bool	ImGui_ImplVitaGL_Init()
 	io.MouseDrawCursor = true;
 	
 	// Initializing buffers
-	startVertex = (float*)malloc(sizeof(float) * 0x100000 * 3);
-	startTexCoord = (float*)malloc(sizeof(float) * 0x100000 * 2);
-	startColor = (uint8_t*)malloc(sizeof(uint8_t) * 0x100000 * 4);
+	startVertex = (float*)malloc(sizeof(float) * VERTEX_BUFFER_SIZE * 3);
+	startTexCoord = (float*)malloc(sizeof(float) * VERTEX_BUFFER_SIZE * 2);
+	startColor = (uint8_t*)malloc(sizeof(uint8_t) * VERTEX_BUFFER_SIZE * 4);
 	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0x5000);
 	
 	gVertexBuffer = startVertex;
