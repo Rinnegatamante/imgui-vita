@@ -1025,7 +1025,7 @@ char* ImStrdup(const char *str)
 {
     size_t len = strlen(str) + 1;
     void* buf = ImGui::MemAlloc(len);
-    return (char*)memcpy_neon(buf, (const void*)str, len);
+    return (char*)sceClibMemcpy(buf, (const void*)str, len);
 }
 
 const char* ImStrchrRange(const char* str, const char* str_end, char c)
@@ -3009,7 +3009,7 @@ static void ImGui::NavUpdate()
         #undef NAV_MAP_KEY
     }
 
-    memcpy_neon(g.IO.NavInputsDownDurationPrev, g.IO.NavInputsDownDuration, sizeof(g.IO.NavInputsDownDuration));
+    sceClibMemcpy(g.IO.NavInputsDownDurationPrev, g.IO.NavInputsDownDuration, sizeof(g.IO.NavInputsDownDuration));
     for (int i = 0; i < IM_ARRAYSIZE(g.IO.NavInputs); i++)
         g.IO.NavInputsDownDuration[i] = (g.IO.NavInputs[i] > 0.0f) ? (g.IO.NavInputsDownDuration[i] < 0.0f ? 0.0f : g.IO.NavInputsDownDuration[i] + g.IO.DeltaTime) : -1.0f;
 
@@ -3485,7 +3485,7 @@ void ImGui::NewFrame()
     g.DragDropAcceptIdCurrRectSurface = FLT_MAX;
 
     // Update keyboard input state
-    memcpy_neon(g.IO.KeysDownDurationPrev, g.IO.KeysDownDuration, sizeof(g.IO.KeysDownDuration));
+    sceClibMemcpy(g.IO.KeysDownDurationPrev, g.IO.KeysDownDuration, sizeof(g.IO.KeysDownDuration));
     for (int i = 0; i < IM_ARRAYSIZE(g.IO.KeysDown); i++)
         g.IO.KeysDownDuration[i] = g.IO.KeysDown[i] ? (g.IO.KeysDownDuration[i] < 0.0f ? 0.0f : g.IO.KeysDownDuration[i] + g.IO.DeltaTime) : -1.0f;
 
@@ -3959,7 +3959,7 @@ void ImDrawDataBuilder::FlattenIntoSingleLayer()
         ImVector<ImDrawList*>& layer = Layers[layer_n];
         if (layer.empty())
             continue;
-        memcpy_neon(&Layers[0][n], &layer[0], layer.Size * sizeof(ImDrawList*));
+        sceClibMemcpy(&Layers[0][n], &layer[0], layer.Size * sizeof(ImDrawList*));
         n += layer.Size;
         layer.resize(0);
     }
@@ -6708,7 +6708,7 @@ void ImGui::PopStyleVar(int count)
     ImGuiContext& g = *GImGui;
     while (count > 0)
     {
-        // We avoid a generic memcpy_neon(data, &backup.Backup.., GDataTypeSize[info->Type] * info->Count), the overhead in Debug is not worth it.
+        // We avoid a generic sceClibMemcpy(data, &backup.Backup.., GDataTypeSize[info->Type] * info->Count), the overhead in Debug is not worth it.
         ImGuiStyleMod& backup = g.StyleModifiers.back();
         const ImGuiStyleVarInfo* info = GetStyleVarInfo(backup.VarIdx);
         void* data = info->GetVarPtr(&g.Style);
@@ -8513,7 +8513,7 @@ static bool DataTypeApplyOpFromText(const char* buf, const char* initial_value_b
     IM_ASSERT(data_type < ImGuiDataType_COUNT);
     int data_backup[2];
     IM_ASSERT(GDataTypeSize[data_type] <= sizeof(data_backup));
-    memcpy_neon(data_backup, data_ptr, GDataTypeSize[data_type]);
+    sceClibMemcpy(data_backup, data_ptr, GDataTypeSize[data_type]);
 
     if (data_type == ImGuiDataType_Int)
     {
@@ -9766,7 +9766,7 @@ static bool STB_TEXTEDIT_INSERTCHARS(STB_TEXTEDIT_STRING* obj, int pos, const Im
     ImWchar* text = obj->Text.Data;
     if (pos != text_len)
         memmove(text + pos + new_text_len, text + pos, (size_t)(text_len - pos) * sizeof(ImWchar));
-    memcpy_neon(text + pos, new_text, (size_t)new_text_len * sizeof(ImWchar));
+    sceClibMemcpy(text + pos, new_text, (size_t)new_text_len * sizeof(ImWchar));
 
     obj->CurLenW += new_text_len;
     obj->CurLenA += new_text_len_utf8;
@@ -9833,7 +9833,7 @@ void ImGuiTextEditCallbackData::InsertChars(int pos, const char* new_text, const
 
     if (BufTextLen != pos)
         memmove(Buf + pos + new_text_len, Buf + pos, (size_t)(BufTextLen - pos));
-    memcpy_neon(Buf + pos, new_text, (size_t)new_text_len * sizeof(char));
+    sceClibMemcpy(Buf + pos, new_text, (size_t)new_text_len * sizeof(char));
     Buf[BufTextLen + new_text_len] = '\0';
 
     if (CursorPos >= pos)
@@ -11625,7 +11625,7 @@ static void ColorPickerOptionsPopup(ImGuiColorEditFlags flags, const float* ref_
                 g.ColorEditOptions = (g.ColorEditOptions & ~ImGuiColorEditFlags__PickerMask) | (picker_flags & ImGuiColorEditFlags__PickerMask);
             ImGui::SetCursorScreenPos(backup_pos);
             ImVec4 dummy_ref_col;
-            memcpy_neon(&dummy_ref_col.x, ref_col, sizeof(float) * (picker_flags & ImGuiColorEditFlags_NoAlpha ? 3 : 4));
+            sceClibMemcpy(&dummy_ref_col.x, ref_col, sizeof(float) * (picker_flags & ImGuiColorEditFlags_NoAlpha ? 3 : 4));
             ImGui::ColorPicker4("##dummypicker", &dummy_ref_col.x, picker_flags);
             ImGui::PopID();
         }
@@ -11823,12 +11823,12 @@ bool ImGui::ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flag
     {
         if (const ImGuiPayload* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_3F))
         {
-            memcpy_neon((float*)col, payload->Data, sizeof(float) * 3);
+            sceClibMemcpy((float*)col, payload->Data, sizeof(float) * 3);
             value_changed = true;
         }
         if (const ImGuiPayload* payload = AcceptDragDropPayload(IMGUI_PAYLOAD_TYPE_COLOR_4F))
         {
-            memcpy_neon((float*)col, payload->Data, sizeof(float) * components);
+            sceClibMemcpy((float*)col, payload->Data, sizeof(float) * components);
             value_changed = true;
         }
         EndDragDropTarget();
@@ -11912,7 +11912,7 @@ bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags fl
     float bars_triangles_half_sz = (float)(int)(bars_width * 0.20f);
 
     float backup_initial_col[4];
-    memcpy_neon(backup_initial_col, col, components * sizeof(float));
+    sceClibMemcpy(backup_initial_col, col, components * sizeof(float));
 
     float wheel_thickness = sv_picker_size * 0.08f;
     float wheel_r_outer = sv_picker_size * 0.50f;
@@ -12032,7 +12032,7 @@ bool ImGui::ColorPicker4(const char* label, float col[4], ImGuiColorEditFlags fl
             ImVec4 ref_col_v4(ref_col[0], ref_col[1], ref_col[2], (flags & ImGuiColorEditFlags_NoAlpha) ? 1.0f : ref_col[3]);
             if (ColorButton("##original", ref_col_v4, (flags & (ImGuiColorEditFlags_HDR|ImGuiColorEditFlags_AlphaPreview|ImGuiColorEditFlags_AlphaPreviewHalf|ImGuiColorEditFlags_NoTooltip)), ImVec2(square_sz * 3, square_sz * 2)))
             {
-                memcpy_neon(col, ref_col, components * sizeof(float));
+                sceClibMemcpy(col, ref_col, components * sizeof(float));
                 value_changed = true;
             }
         }
@@ -12969,14 +12969,14 @@ bool ImGui::SetDragDropPayload(const char* type, const void* data, size_t data_s
             // Store in heap
             g.DragDropPayloadBufHeap.resize((int)data_size);
             payload.Data = g.DragDropPayloadBufHeap.Data;
-            memcpy_neon((void*)(intptr_t)payload.Data, data, data_size);
+            sceClibMemcpy((void*)(intptr_t)payload.Data, data, data_size);
         }
         else if (data_size > 0)
         {
             // Store locally
             memset(&g.DragDropPayloadBufLocal, 0, sizeof(g.DragDropPayloadBufLocal));
             payload.Data = g.DragDropPayloadBufLocal;
-            memcpy_neon((void*)(intptr_t)payload.Data, data, data_size);
+            sceClibMemcpy((void*)(intptr_t)payload.Data, data, data_size);
         }
         else
         {
@@ -13169,7 +13169,7 @@ static void SetClipboardTextFn_DefaultImpl(void*, const char* text)
     g.PrivateClipboard.clear();
     const char* text_end = text + strlen(text);
     g.PrivateClipboard.resize((int)(text_end - text) + 1);
-    memcpy_neon(&g.PrivateClipboard[0], text, (size_t)(text_end - text));
+    sceClibMemcpy(&g.PrivateClipboard[0], text, (size_t)(text_end - text));
     g.PrivateClipboard[(int)(text_end - text)] = 0;
 }
 

@@ -13,7 +13,7 @@
 int main(int, char**)
 {
 	
-	vglInit(0x100000);
+	vglInitExtended(960, 544, 0x800000, SCE_GXM_MULTISAMPLE_4X);
 
 	// Setup ImGui binding
 	ImGui::CreateContext();
@@ -36,7 +36,6 @@ int main(int, char**)
 	bool done = false;
 	while (!done)
 	{
-		vglStartRendering();
 		ImGui_ImplVitaGL_NewFrame();
 		
 		if (ImGui::BeginMainMenuBar()){
@@ -90,7 +89,7 @@ int main(int, char**)
 		//glUseProgram(0); // You may want this if using this code in an OpenGL 3+ context where shaders may be bound
 		ImGui::Render();
 		ImGui_ImplVitaGL_RenderDrawData(ImGui::GetDrawData());
-		vglStopRendering();
+		vglSwapBuffers(GL_FALSE);
 	}
 
 	// Cleanup
