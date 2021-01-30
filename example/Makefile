@@ -25,7 +25,7 @@ all: $(TARGET).vpk
 
 $(TARGET).vpk: $(TARGET).velf
 	vita-make-fself -s $< eboot.bin
-	vita-mksfoex -s TITLE_ID=$(TITLE) "$(TARGET)" param.sfo
+	vita-mksfoex -s TITLE_ID=$(TITLE) -d ATTRIBUTE2=12 "$(TARGET)" param.sfo
 	vita-pack-vpk -s param.sfo -b eboot.bin $@
 
 %.velf: %.elf

@@ -10,10 +10,14 @@
 #include <stdio.h>
 #include <vitaGL.h>
 
+extern "C" {
+	int _newlib_heap_size_user = 256 * 1024 * 1024;
+}
+
 int main(int, char**)
 {
 	
-	vglInitExtended(960, 544, 0x800000, SCE_GXM_MULTISAMPLE_4X);
+	vglInitExtended(960, 544, 0x1800000, SCE_GXM_MULTISAMPLE_4X);
 
 	// Setup ImGui binding
 	ImGui::CreateContext();
