@@ -17,7 +17,7 @@ extern "C" {
 int main(int, char**)
 {
 	
-	vglInitExtended(960, 544, 0x1800000, SCE_GXM_MULTISAMPLE_4X);
+	vglInitExtended(0, 960, 544, 0x1800000, SCE_GXM_MULTISAMPLE_4X);
 
 	// Setup ImGui binding
 	ImGui::CreateContext();
