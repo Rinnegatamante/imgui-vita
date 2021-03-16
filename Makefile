@@ -1,9 +1,5 @@
 TARGET		:= libimgui
 
-LIBS = -lvitaGL -lc -lSceCommonDialog_stub -lSceLibKernel_stub \
-	-lSceDisplay_stub -lSceGxm_stub -lSceSysmodule_stub -lSceCtrl_stub \
-	-lSceTouch_stub -lm -lSceAppMgr_stub -lSceAppUtil_stub
-
 CPPSOURCES	:= .
 
 CFILES	:= 
