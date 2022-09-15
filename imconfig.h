@@ -61,9 +61,21 @@
 //#define ImDrawIdx unsigned int
 
 //---- Tip: You can add extra functions within the ImGui:: namespace, here or in your own headers files.
-/*
+
 namespace ImGui
 {
-    void MyFunction(const char* name, const MyMatrix44& v);
+    inline bool custom_UseFontShadow;
+    inline unsigned int custom_FontShadowColor;
+
+    inline static void PushFontShadow(unsigned int col)
+    {
+        custom_UseFontShadow   = true;
+        custom_FontShadowColor = col;
+    }
+
+    inline static void PopFontShadow(void)
+    {
+        custom_UseFontShadow = false;
+    }
 }
-*/
+

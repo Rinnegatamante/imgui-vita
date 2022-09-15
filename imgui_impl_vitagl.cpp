@@ -291,13 +291,13 @@ bool	ImGui_ImplVitaGL_Init()
 	startVertex = (float*)malloc(sizeof(float) * VERTEX_BUFFER_SIZE * 3);
 	startTexCoord = (float*)malloc(sizeof(float) * VERTEX_BUFFER_SIZE * 2);
 	startColor = (uint8_t*)malloc(sizeof(uint8_t) * VERTEX_BUFFER_SIZE * 4);
-	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0x5000);
+	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0xA000);
 	
 	gVertexBuffer = startVertex;
 	gColorBuffer = startColor;
 	gTexCoordBuffer = startTexCoord;
 	
-	for (uint16_t i = 0; i < 0x5000; i++) {
+	for (uint16_t i = 0; i < 0xA000; i++) {
 		gIndexBuffer[i] = i;
 	}
 	
