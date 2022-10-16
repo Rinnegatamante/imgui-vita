@@ -12,6 +12,7 @@
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
 #define VERTEX_BUFFER_SIZE 0x100000
+#define EXTENDED_VERTEX_BUFFER_SIZE 0x200000
 
 // Data
 static uint64_t	   g_Time = 0;
@@ -34,6 +35,8 @@ static bool touch_usage = false;
 static bool mousestick_usage = true;
 static bool gamepad_usage = false;
 static bool shaders_usage = false;
+
+static uint32_t imgui_mempool_size;
 
 #ifdef ENABLE_IMGUI_LOG
 void LOG(const char *format, ...) {
@@ -171,7 +174,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 			}
 			idx_buffer += pcmd->ElemCount;
 			gCounter += pcmd->ElemCount;
-			if (gCounter > VERTEX_BUFFER_SIZE - 0x66700){
+			if (gCounter > imgui_mempool_size - 0x66700){
 				gVertexBuffer = startVertex;
 				gColorBuffer = startColor;
 				gTexCoordBuffer = startTexCoord;
@@ -277,9 +280,8 @@ void	ImGui_ImplVitaGL_InvalidateDeviceObjects()
 	}
 }
 
-bool	ImGui_ImplVitaGL_Init()
+static bool	_ImGui_ImplVitaGL_Init(bool extended)
 {
-	
 	sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
 	sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
 	
@@ -288,16 +290,17 @@ bool	ImGui_ImplVitaGL_Init()
 	io.MouseDrawCursor = true;
 	
 	// Initializing buffers
-	startVertex = (float*)malloc(sizeof(float) * VERTEX_BUFFER_SIZE * 3);
-	startTexCoord = (float*)malloc(sizeof(float) * VERTEX_BUFFER_SIZE * 2);
-	startColor = (uint8_t*)malloc(sizeof(uint8_t) * VERTEX_BUFFER_SIZE * 4);
-	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0xA000);
+	imgui_mempool_size = extended ? EXTENDED_VERTEX_BUFFER_SIZE : VERTEX_BUFFER_SIZE;
+	startVertex = (float*)malloc(sizeof(float) * imgui_mempool_size * 3);
+	startTexCoord = (float*)malloc(sizeof(float) * imgui_mempool_size * 2);
+	startColor = (uint8_t*)malloc(sizeof(uint8_t) * imgui_mempool_size * 4);
+	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0xF000);
 	
 	gVertexBuffer = startVertex;
 	gColorBuffer = startColor;
 	gTexCoordBuffer = startTexCoord;
 	
-	for (uint16_t i = 0; i < 0xA000; i++) {
+	for (uint16_t i = 0; i < 0xF000; i++) {
 		gIndexBuffer[i] = i;
 	}
 	
@@ -329,6 +332,16 @@ bool	ImGui_ImplVitaGL_Init()
 	ImGui_ImplVitaGL_InitTouch();
 
 	return true;
+}
+
+bool	ImGui_ImplVitaGL_Init()
+{
+	return _ImGui_ImplVitaGL_Init(false);
+}
+
+bool	ImGui_ImplVitaGL_Init_Extended()
+{
+	return _ImGui_ImplVitaGL_Init(true);
 }
 
 void ImGui_ImplVitaGL_Shutdown()

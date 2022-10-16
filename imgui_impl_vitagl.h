@@ -4,6 +4,7 @@
 #include <vitasdk.h>
 
 IMGUI_API bool        ImGui_ImplVitaGL_Init();
+IMGUI_API bool        ImGui_ImplVitaGL_Init_Extended();
 IMGUI_API void        ImGui_ImplVitaGL_Shutdown();
 IMGUI_API void        ImGui_ImplVitaGL_NewFrame();
 IMGUI_API void        ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data);
