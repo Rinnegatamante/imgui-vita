@@ -5,7 +5,8 @@ GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always --tags)
 LIBS = -limgui -lvitaGL -lc -lSceCommonDialog_stub -lSceLibKernel_stub \
 	-lSceDisplay_stub -lSceGxm_stub -lSceSysmodule_stub -lSceCtrl_stub \
 	-lSceTouch_stub -lm -lSceAppMgr_stub -lSceAppUtil_stub -lmathneon \
-	-lvitashark -lSceShaccCg_stub
+	-lSceKernelDmacMgr_stub -lvitashark -lSceShaccCgExt -ltaihen_stub \
+	-lSceShaccCg_stub
 
 CPPSOURCES	:= .
 
