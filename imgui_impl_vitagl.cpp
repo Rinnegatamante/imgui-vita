@@ -166,7 +166,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 					vglVertexAttribPointerMapped(1, tp);
 					vglVertexAttribPointerMapped(2, cp);
 				}else{
-					vglVertexPointerMapped(vp);
+					vglVertexPointerMapped(3, vp);
 					vglTexCoordPointerMapped(tp);
 					vglColorPointerMapped(GL_UNSIGNED_BYTE, cp);
 				}
