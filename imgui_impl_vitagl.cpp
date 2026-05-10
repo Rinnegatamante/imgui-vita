@@ -304,15 +304,10 @@ static bool	_ImGui_ImplVitaGL_Init(bool extended)
 	startVertex = (float*)malloc(sizeof(float) * imgui_mempool_size * 3);
 	startTexCoord = (float*)malloc(sizeof(float) * imgui_mempool_size * 2);
 	startColor = (uint8_t*)malloc(sizeof(uint8_t) * imgui_mempool_size * 4);
-	gIndexBuffer = (uint16_t*)malloc(sizeof(uint16_t) * 0xF000);
 	
 	gVertexBuffer = startVertex;
 	gColorBuffer = startColor;
 	gTexCoordBuffer = startTexCoord;
-	
-	for (uint16_t i = 0; i < 0xF000; i++) {
-		gIndexBuffer[i] = i;
-	}
 	
 	// Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
 	/*io.KeyMap[ImGuiKey_Tab] = SDL_SCANCODE_TAB;
@@ -360,7 +355,6 @@ void ImGui_ImplVitaGL_Shutdown()
 	free(gVertexBuffer);
 	free(gTexCoordBuffer);
 	free(gColorBuffer);
-	free(gIndexBuffer);
 	
 	// Destroy OpenGL objects
 	ImGui_ImplVitaGL_InvalidateDeviceObjects();
@@ -487,7 +481,7 @@ void ImGui_ImplVitaGL_NewFrame()
 	// Start the frame. This call will update the io.WantCaptureMouse, io.WantCaptureKeyboard flag that you can use to dispatch inputs (or not) to your application.
 	ImGui::NewFrame();
 	
-	vglIndexPointerMapped(gIndexBuffer);
+	vglIndexPointerDefault();
 }
 
 void ImGui_ImplVitaGL_TouchUsage(bool val){
