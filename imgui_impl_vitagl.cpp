@@ -170,7 +170,7 @@ void ImGui_ImplVitaGL_RenderDrawData(ImDrawData* draw_data)
 					vglTexCoordPointerMapped(tp);
 					vglColorPointerMapped(GL_UNSIGNED_BYTE, cp);
 				}
-				vglDrawObjects(GL_TRIANGLES, pcmd->ElemCount, GL_TRUE);
+				vglDrawObjects(GL_TRIANGLES, pcmd->ElemCount);
 			}
 			idx_buffer += pcmd->ElemCount;
 			gCounter += pcmd->ElemCount;
